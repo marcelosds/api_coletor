@@ -25,8 +25,16 @@ module.exports = {
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
     trustProxy: true, // Enable trust proxy to handle X-Forwarded-For headers
     skip: (req) => {
-      // Skip rate limiting for health checks
-      return req.path === '/health';
+      // Skip rate limiting for health checks and auth endpoints
+      const path = req.path || req.originalUrl || '';
+      if (path === '/health') return true;
+      // Evitar 429 em login/registro/refresh/logout para experiência consistente
+      if (path.startsWith('/api/auth/')) return true;
+      return false;
+    },
+    keyGenerator: (req /*, res*/ ) => {
+      // Garante uma chave consistente por IP mesmo atrás de proxy
+      return req.ip || req.headers['x-forwarded-for'] || 'unknown';
     }
   },
   
