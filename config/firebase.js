@@ -1,20 +1,58 @@
 // api/config/firebase.js
+require('dotenv').config();
 const admin = require('firebase-admin');
+const fs = require('fs');
 const path = require('path');
 
-// Inicializar Firebase Admin SDK
-const serviceAccount = require('./coletoroficial-firebase-adminsdk-fbsvc-b4c3260d39.json');
+// Inicializar Firebase Admin SDK via variáveis de ambiente
+// Opções suportadas:
+// - FIREBASE_SERVICE_ACCOUNT_JSON: conteúdo JSON completo inline
+// - FIREBASE_CREDENTIALS_PATH: caminho absoluto/relativo para o arquivo JSON
+// - GOOGLE_APPLICATION_CREDENTIALS: caminho padrão suportado pelo SDK
+let serviceAccount = null;
+
+// Tentar ler conteúdo inline
+if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+  try {
+    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+  } catch (e) {
+    console.error('FIREBASE_SERVICE_ACCOUNT_JSON inválido:', e.message);
+  }
+}
+
+// Se não houver inline, tentar por caminho
+if (!serviceAccount) {
+  const credPath = process.env.FIREBASE_CREDENTIALS_PATH || process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  if (credPath) {
+    try {
+      const resolved = path.isAbsolute(credPath) ? credPath : path.resolve(process.cwd(), credPath);
+      const json = fs.readFileSync(resolved, 'utf8');
+      serviceAccount = JSON.parse(json);
+    } catch (e) {
+      console.error('Erro ao ler credenciais do Firebase em', credPath, '-', e.message);
+    }
+  }
+}
 
 let firestoreAvailable = false;
 
 if (!admin.apps.length) {
   try {
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-      projectId: serviceAccount.project_id,
-      databaseURL: "https://coletoroficial-default-rtdb.firebaseio.com"
-    });
-    console.log('Firebase Admin SDK inicializado com sucesso');
+    if (serviceAccount) {
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+        projectId: serviceAccount.project_id,
+        databaseURL: process.env.FIREBASE_DATABASE_URL || 'https://coletoroficial-default-rtdb.firebaseio.com'
+      });
+      console.log('Firebase Admin SDK inicializado com credenciais do service account');
+    } else {
+      // Tentar credenciais padrão do ambiente
+      admin.initializeApp({
+        credential: admin.credential.applicationDefault(),
+        databaseURL: process.env.FIREBASE_DATABASE_URL || 'https://coletoroficial-default-rtdb.firebaseio.com'
+      });
+      console.log('Firebase Admin SDK inicializado com applicationDefault()');
+    }
   } catch (error) {
     console.error('Erro ao inicializar Firebase Admin SDK:', error.message);
   }

@@ -52,7 +52,25 @@ DATABASE_PATH=./data/database.sqlite
 # Removido na migração para SQLite + JWT
 ```
 
-3. Firebase Admin SDK removido: não é mais necessário.
+3. Credenciais do Firebase (Admin SDK) via .env
+
+Para evitar manter a chave no repositório, configure as credenciais via variáveis de ambiente:
+
+No arquivo `.env` da pasta `api` adicione:
+
+```
+# Caminho do arquivo de credenciais (service account) OU conteúdo inline
+FIREBASE_CREDENTIALS_PATH=C:\caminho\para\service-account.json
+# ou
+FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account", ...}
+
+# URL do banco de dados (se aplicável)
+FIREBASE_DATABASE_URL=https://coletoroficial-default-rtdb.firebaseio.com
+```
+
+- O arquivo `api/config/coletoroficial-*.json` não é mais utilizado.
+- As credenciais também funcionam com `GOOGLE_APPLICATION_CREDENTIALS` apontando para o JSON.
+- O `.gitignore` já ignora arquivos de credenciais.
 
 ## 🏃‍♂️ Execução
 
