@@ -1,92 +1,59 @@
-# ============================================
+# --------------------------------------------
 # Instalador automático da API COLETOR
-# ============================================
+# Desenvolvido por Marcelo Souza
+# --------------------------------------------
 
 Write-Host "=== Instalador da API COLETOR ===" -ForegroundColor Cyan
 
-# Caminho de instalação
+# Caminho padrão de instalação
 $installPath = "C:\api_coletor"
 
 # Repositório GitHub
-# URL do repositório (ajuste para o seu GitHub)
 $repoUrl = "https://github.com/marcelosds/api_coletor.git"
 
-# Verifica se já existe instalação
+# Se a pasta já existir, perguntar se deseja sobrescrever
 if (Test-Path $installPath) {
-    Write-Host "Pasta de instalação existente. Preparando atualização limpa..." -ForegroundColor Yellow
-    try {
-        # Finaliza todos os processos Node e PM2
-        Stop-Process -Name "node" -Force -ErrorAction SilentlyContinue
-        pm2 delete api_coletor | Out-Null
-        pm2 kill | Out-Null
-        Start-Sleep -Seconds 2
-    } catch {
-        Write-Host "Nenhum processo ativo encontrado." -ForegroundColor DarkYellow
-    }
-
-    Write-Host "Removendo pasta antiga..." -ForegroundColor Yellow
-    try {
-        Remove-Item -Recurse -Force $installPath
-    } catch {
-        Write-Host "Erro ao remover a pasta. Verifique se nenhum programa está usando o diretório e tente novamente." -ForegroundColor Red
+    $response = Read-Host "A pasta $installPath já existe. Deseja sobrescrever? (S/N)"
+    if ($response -ne "S") {
+        Write-Host "Instalação cancelada." -ForegroundColor Yellow
         exit
     }
+    Remove-Item -Recurse -Force $installPath
 }
 
-# Clona o repositório
-Write-Host "Clonando repositório da API..." -ForegroundColor Cyan
+# Clonar o repositório
+Write-Host "Clonando repositório..."
 git clone $repoUrl $installPath
 
-# Entra na pasta
+# Acessar diretório
 Set-Location $installPath
 
-# Instala dependências
-Write-Host "Instalando dependências npm..." -ForegroundColor Cyan
+# Instalar dependências
+Write-Host "Instalando dependências NPM..."
 npm install
 
-# Instala PM2 (caso não tenha)
-Write-Host "Verificando PM2..." -ForegroundColor Cyan
-if (-not (Get-Command pm2 -ErrorAction SilentlyContinue)) {
-    npm install -g pm2
+# Criar arquivo .env se não existir
+if (-not (Test-Path ".env")) {
+    if (Test-Path ".env.example") {
+        Copy-Item ".env.example" ".env"
+        Write-Host "Arquivo .env criado a partir do modelo."
+    } else {
+        Write-Host "Arquivo .env não encontrado. Crie manualmente depois." -ForegroundColor Yellow
+    }
 }
 
-# Configura o PM2 para rodar a API como serviço
-Write-Host "Configurando serviço no PM2..." -ForegroundColor Cyan
-pm2 start "$installPath\src\server.js" --name "api_coletor"
+# Instalar PM2 globalmente (para rodar como serviço)
+npm install pm2 -g
+
+# Iniciar API com PM2
+pm2 start npm --name "api_coletor" -- start
 pm2 save
-pm2 startup | Out-Null
 
-# Criar .env automaticamente se não existir, usando valores padrão seguros
-$envFile = Join-Path $installPath "api\.env"
-if (-not (Test-Path $envFile)) {
-    Write-Host "Gerando arquivo .env padrão..." -ForegroundColor Cyan
-    $envContent = @"
-# Configurações do Servidor
-PORT=3000
-NODE_ENV=production
+# Criar arquivo de configuração local
+$configPath = "$env:ProgramData\api_coletor"
+if (-not (Test-Path $configPath)) { New-Item -ItemType Directory -Path $configPath | Out-Null }
+Set-Content -Path "$configPath\install_path.txt" -Value $installPath
 
-# JWT Configuration
-JWT_SECRET=$(New-Guid)
-JWT_EXPIRES_IN=24h
-JWT_REFRESH_EXPIRES_IN=7d
-
-# CORS Configuration
-CORS_ORIGIN=*
-
-# Database Configuration
-DB_PATH=./data/database.sqlite
-
-# Firebase Admin Credentials (opcional; deixe vazio para desabilitar integrações)
-FIREBASE_CREDENTIALS_PATH=
-FIREBASE_SERVICE_ACCOUNT_JSON=
-FIREBASE_DATABASE_URL=https://coletoroficial-default-rtdb.firebaseio.com
-"@
-    New-Item -ItemType Directory -Force -Path (Join-Path $installPath "api") | Out-Null
-    Set-Content -Path $envFile -Value $envContent -Encoding UTF8
-}
-
-Write-Host "====================================="
 Write-Host "✅ Instalação concluída com sucesso!"
-Write-Host "A API COLETOR está rodando via PM2."
-Write-Host "Para verificar o status: pm2 list"
-Write-Host "====================================="
+Write-Host "A API está em execução e será iniciada automaticamente pelo PM2."
+Write-Host "Para atualizar futuramente, execute o arquivo update.ps1"
