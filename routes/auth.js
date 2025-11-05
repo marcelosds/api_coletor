@@ -10,6 +10,8 @@ const { validateLogin, validateRegister } = require('../middleware/validation');
 router.post('/login', validateLogin, authController.login);
 router.post('/register', validateRegister, authController.register);
 router.post('/refresh-token', authController.refreshToken);
+// Login via Firebase: troca idToken por JWT do servidor
+router.post('/firebase-login', authController.firebaseLogin);
 
 // Logout protegido
 router.post('/logout', verifyAuth, authController.logout);

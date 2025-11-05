@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const config = require('../config/config');
 const Users = require('../repositories/userRepo');
+const { auth: firebaseAuth } = require('../config/firebase');
 
 class AuthController {
   // Login com email e senha (JWT) usando SQLite
@@ -52,11 +53,24 @@ class AuthController {
         { expiresIn: config.jwt.expiresIn }
       );
 
+      // Gerar refresh token
+      const refreshToken = jwt.sign(
+        {
+          uid: user.id,
+          email: user.email,
+          name: user.name,
+          type: 'refresh'
+        },
+        config.jwt.secret,
+        { expiresIn: config.jwt.refreshExpiresIn }
+      );
+
       res.json({
         success: true,
         message: 'Login realizado com sucesso',
         data: {
           token,
+          refreshToken,
           user: {
             id: user.id,
             uid: user.id,
@@ -114,11 +128,24 @@ class AuthController {
         { expiresIn: config.jwt.expiresIn }
       );
 
+      // Gerar refresh token
+      const refreshToken = jwt.sign(
+        {
+          uid: created.id,
+          email: created.email,
+          name: created.name,
+          type: 'refresh'
+        },
+        config.jwt.secret,
+        { expiresIn: config.jwt.refreshExpiresIn }
+      );
+
       res.status(201).json({
         success: true,
         message: 'Usuário criado com sucesso',
         data: {
           token,
+          refreshToken,
           user: {
             id: created.id,
             uid: created.id,
@@ -145,6 +172,98 @@ class AuthController {
       error: 'Funcionalidade descontinuada',
       message: 'Verificação de token Firebase foi removida. Use JWT via /api/auth/login.'
     });
+  }
+
+  // Login via Firebase: verifica idToken, garante usuário em SQLite e emite JWT
+  async firebaseLogin(req, res) {
+    try {
+      const { idToken } = req.body;
+      if (!idToken) {
+        return res.status(400).json({
+          error: 'idToken requerido',
+          message: 'Forneça o idToken do Firebase para autenticação'
+        });
+      }
+
+      // Verificar token com Firebase Admin
+      let decoded;
+      try {
+        decoded = await firebaseAuth.verifyIdToken(idToken);
+      } catch (e) {
+        console.error('Erro ao verificar idToken Firebase:', e);
+        return res.status(401).json({
+          error: 'Token inválido',
+          message: 'idToken Firebase inválido ou expirado'
+        });
+      }
+
+      const cleanEmail = (decoded.email || '').trim().toLowerCase();
+      const displayName = (decoded.name || decoded.firebase?.sign_in_provider || cleanEmail || '').trim();
+
+      if (!cleanEmail) {
+        return res.status(400).json({
+          error: 'Email não disponível',
+          message: 'Token Firebase não contém email verificável'
+        });
+      }
+
+      // Garantir usuário em SQLite
+      let user = Users.findByEmail(cleanEmail);
+      if (!user) {
+        // Criar usuário com senha aleatória (não usada para login JWT direto)
+        const randomPassword = await bcrypt.hash('firebase:' + decoded.uid + ':' + Date.now(), 10);
+        const created = Users.createUser({ email: cleanEmail, password: randomPassword, name: displayName || cleanEmail });
+        user = { id: created.id, email: created.email, name: created.name, createdAt: created.createdAt };
+      }
+
+      // Gerar JWT token do servidor
+      const token = jwt.sign(
+        {
+          uid: user.id,
+          email: user.email,
+          name: user.name,
+          firebaseUid: decoded.uid
+        },
+        config.jwt.secret,
+        { expiresIn: config.jwt.expiresIn }
+      );
+
+      // Gerar refresh token
+      const refreshToken = jwt.sign(
+        {
+          uid: user.id,
+          email: user.email,
+          name: user.name,
+          firebaseUid: decoded.uid,
+          type: 'refresh'
+        },
+        config.jwt.secret,
+        { expiresIn: config.jwt.refreshExpiresIn }
+      );
+
+      return res.json({
+        success: true,
+        message: 'Login via Firebase realizado com sucesso',
+        data: {
+          token,
+          refreshToken,
+          user: {
+            id: user.id,
+            uid: user.id,
+            email: user.email,
+            name: user.name,
+            fullName: user.name,
+            createdAt: user.createdAt
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Erro no firebase-login:', error);
+      return res.status(500).json({
+        error: 'Erro interno do servidor',
+        message: 'Erro ao autenticar via Firebase'
+      });
+    }
   }
 
   // Refresh token JWT

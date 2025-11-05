@@ -49,12 +49,25 @@ class SimpleAuthController {
         { expiresIn: config.jwt.expiresIn }
       );
 
+      // Gerar refresh token
+      const refreshToken = jwt.sign(
+        {
+          uid: user.id,
+          email: user.email,
+          name: user.name,
+          type: 'refresh'
+        },
+        config.jwt.secret,
+        { expiresIn: config.jwt.refreshExpiresIn }
+      );
+
       console.log('✅ Login bem-sucedido para:', email);
 
       res.json({
         success: true,
         message: 'Login realizado com sucesso',
         token,
+        refreshToken,
         user: {
           uid: user.id,
           email: user.email,
@@ -119,12 +132,25 @@ class SimpleAuthController {
         { expiresIn: config.jwt.expiresIn }
       );
 
+      // Gerar refresh token
+      const refreshToken = jwt.sign(
+        {
+          uid: userId,
+          email,
+          name,
+          type: 'refresh'
+        },
+        config.jwt.secret,
+        { expiresIn: config.jwt.refreshExpiresIn }
+      );
+
       console.log('✅ Usuário criado com sucesso:', email);
 
       res.status(201).json({
         success: true,
         message: 'Usuário criado com sucesso',
         token,
+        refreshToken,
         user: {
           uid: userId,
           email,

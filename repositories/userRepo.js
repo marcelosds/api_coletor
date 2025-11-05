@@ -31,8 +31,30 @@ function getById(id) {
   return row || null;
 }
 
+function deleteById(id) {
+  try {
+    const res = db.prepare('DELETE FROM users WHERE id = ?').run(id);
+    return res.changes > 0;
+  } catch (error) {
+    console.error('[UserRepo] Erro ao deletar usuário por id:', error);
+    throw error;
+  }
+}
+
+function deleteByEmail(email) {
+  try {
+    const res = db.prepare('DELETE FROM users WHERE email = ?').run(email);
+    return res.changes > 0;
+  } catch (error) {
+    console.error('[UserRepo] Erro ao deletar usuário por email:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   createUser,
   findByEmail,
   getById,
+  deleteById,
+  deleteByEmail,
 };

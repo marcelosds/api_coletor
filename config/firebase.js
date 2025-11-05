@@ -3,7 +3,7 @@ const admin = require('firebase-admin');
 const path = require('path');
 
 // Inicializar Firebase Admin SDK
-const serviceAccount = require('./coletoroficial-firebase-adminsdk-fbsvc-cdf08d321d.json');
+const serviceAccount = require('./coletoroficial-firebase-adminsdk-fbsvc-b4c3260d39.json');
 
 let firestoreAvailable = false;
 

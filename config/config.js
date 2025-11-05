@@ -8,7 +8,9 @@ module.exports = {
   // JWT Configuration
   jwt: {
     secret: process.env.JWT_SECRET || 'coletor-patrimonial-secret-key-2024',
-    expiresIn: process.env.JWT_EXPIRES_IN || '24h'
+    expiresIn: process.env.JWT_EXPIRES_IN || '24h',
+    // Prazo de expiração do refresh token
+    refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d'
   },
   
   // CORS Configuration

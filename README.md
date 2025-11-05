@@ -122,6 +122,7 @@ api/
 
 ### Usuários
 - `GET /api/users/profile` - Perfil do usuário autenticado
+- `DELETE /api/users/:id` - Exclui a própria conta e remove no Firebase
 
 ## 🔐 Autenticação
 
@@ -226,4 +227,4 @@ Os testes incluem:
 
 ## 📞 Suporte
 
-Para suporte ou dúvidas sobre a API, consulte a documentação ou entre em contato com a equipe de desenvolvimento."# API - Coletor de Dados " 
+Para suporte ou dúvidas sobre a API, consulte a documentação ou entre em contato com a equipe de desenvolvimento."# API - Coletor de Dados "

@@ -162,6 +162,16 @@ function deleteByInventario(nrInventario) {
   return res.changes || 0;
 }
 
+function deleteByUserId(userId) {
+  try {
+    const res = db.prepare('DELETE FROM inventory WHERE userId = ?').run(userId);
+    return res.changes || 0;
+  } catch (error) {
+    console.error('[InventoryRepo] Erro ao deletar inventários por userId:', error);
+    throw error;
+  }
+}
+
 function updateByCode(code, data, nrInventario) {
   const row = getByCode(code, nrInventario);
   if (!row) return null;
@@ -315,6 +325,7 @@ module.exports = {
   updateByCode,
   deleteById,
   deleteByInventario,
+  deleteByUserId,
   distinctLocais,
   distinctSituacoes,
   distinctEstados,

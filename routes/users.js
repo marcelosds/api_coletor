@@ -18,4 +18,8 @@ router.get('/profile', (req, res) => {
   });
 });
 
+// Exclusão de usuário (apenas o próprio usuário pode excluir sua conta)
+const usersController = require('../controllers/usersController');
+router.delete('/:id', usersController.delete);
+
 module.exports = router;
