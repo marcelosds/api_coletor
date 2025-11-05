@@ -84,6 +84,11 @@ const validateInventoryItem = [
     .optional()
     .isLength({ min: 1 })
     .withMessage('Estado não pode estar vazio'),
+  body('inventariadoPor')
+    .optional()
+    .isLength({ min: 1 })
+    .withMessage('inventariadoPor não pode estar vazio')
+    .trim(),
   body('observacao')
     .optional()
     .isLength({ max: 500 })
@@ -104,6 +109,11 @@ const validateInventoryUpdate = [
     .optional()
     .isLength({ min: 1 })
     .withMessage('Estado não pode estar vazio'),
+  body('inventariadoPor')
+    .optional()
+    .isLength({ min: 1 })
+    .withMessage('inventariadoPor não pode estar vazio')
+    .trim(),
   body('observacao')
     .optional()
     .isLength({ max: 500 })

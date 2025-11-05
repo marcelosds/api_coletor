@@ -36,6 +36,7 @@ function normalizeInput(body = {}) {
   const dsObservacao = body.dsObservacao ?? body.observacoes;
   const valorAtual = normalizeValorAtual(body.valorAtual);
   const statusBem = body.StatusBem ?? body.statusBem ?? body.status;
+  const inventariadoPor = body.inventariadoPor;
 
   return pruneUndefined({
     codigo: body.codigo,
@@ -46,6 +47,7 @@ function normalizeInput(body = {}) {
     situacaoNome,
     estadoConservacaoNome,
     dsObservacao,
+    inventariadoPor,
     // códigos canônicos
     codigoLocalizacao,
     codigoSituacao,
@@ -70,6 +72,7 @@ function toCanonicalOutput(data = {}) {
   const dsObservacao = data.dsObservacao ?? data.observacoes ?? null;
   const valorAtual = data.valorAtual ?? null;
   const statusBem = data.statusBem ?? data.StatusBem ?? data.status ?? null;
+  const inventariadoPor = data.inventariadoPor ?? null;
 
   const canonical = {
     codigo: data.codigo ?? null,
@@ -80,6 +83,7 @@ function toCanonicalOutput(data = {}) {
     situacaoNome,
     estadoConservacaoNome,
     dsObservacao,
+    inventariadoPor,
     // códigos canônicos
     codigoLocalizacao,
     codigoSituacao,

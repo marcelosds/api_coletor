@@ -21,6 +21,7 @@ function toCanonicalRow(row) {
     codigoEstado: row.codigoEstado || null,
     nrInventario: row.nrInventario || null,
     valorAtual: row.valorAtual !== null && row.valorAtual !== undefined ? Number(row.valorAtual) : null,
+    inventariadoPor: row.inventariadoPor || null,
     StatusBem: row.statusBem || null,
     statusBem: row.statusBem || null,
     status: row.statusBem || null,
@@ -100,14 +101,14 @@ function create(data, userId) {
       id, userId, codigo, placa, descricao,
       localizacaoNome, situacaoNome, estadoConservacaoNome, dsObservacao,
       codigoLocalizacao, codigoSituacao, codigoEstado,
-      nrInventario, valorAtual, statusBem,
+      nrInventario, valorAtual, statusBem, inventariadoPor,
       createdAt, updatedAt
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
   `).run(
     id, userId, data.codigo || null, data.placa || null, data.descricao || null,
     data.localizacaoNome || null, data.situacaoNome || null, data.estadoConservacaoNome || null, data.dsObservacao || null,
     data.codigoLocalizacao || null, data.codigoSituacao || null, data.codigoEstado || null,
-    data.nrInventario || null, data.valorAtual ?? null, data.statusBem || null,
+    data.nrInventario || null, data.valorAtual ?? null, data.statusBem || null, data.inventariadoPor || null,
     ts, ts
   );
   const row = db.prepare('SELECT * FROM inventory WHERE id = ?').get(id);
@@ -138,6 +139,7 @@ function updateById(id, data) {
       nrInventario = COALESCE(?, nrInventario),
       valorAtual = COALESCE(?, valorAtual),
       statusBem = COALESCE(?, statusBem),
+      inventariadoPor = COALESCE(?, inventariadoPor),
       updatedAt = ?
     WHERE id = ?
   `).run(
@@ -145,6 +147,7 @@ function updateById(id, data) {
     data.localizacaoNome ?? null, data.situacaoNome ?? null, data.estadoConservacaoNome ?? null, data.dsObservacao ?? null,
     data.codigoLocalizacao ?? null, data.codigoSituacao ?? null, data.codigoEstado ?? null,
     data.nrInventario ?? null, data.valorAtual ?? null, data.statusBem ?? null,
+    data.inventariadoPor ?? null,
     ts, id
   );
   const row = db.prepare('SELECT * FROM inventory WHERE id = ?').get(id);
@@ -236,16 +239,16 @@ function sync(items = [], userId) {
       id, userId, codigo, placa, descricao,
       localizacaoNome, situacaoNome, estadoConservacaoNome, dsObservacao,
       codigoLocalizacao, codigoSituacao, codigoEstado,
-      nrInventario, valorAtual, statusBem,
+      nrInventario, valorAtual, statusBem, inventariadoPor,
       createdAt, updatedAt
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
   `);
   const update = db.prepare(`
     UPDATE inventory SET
       codigo = ?, placa = ?, descricao = ?,
       localizacaoNome = ?, situacaoNome = ?, estadoConservacaoNome = ?, dsObservacao = ?,
       codigoLocalizacao = ?, codigoSituacao = ?, codigoEstado = ?,
-      nrInventario = ?, valorAtual = ?, statusBem = ?,
+      nrInventario = ?, valorAtual = ?, statusBem = ?, inventariadoPor = ?,
       updatedAt = ?
     WHERE id = ?
   `);

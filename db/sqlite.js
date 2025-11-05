@@ -49,6 +49,7 @@ function init() {
         nrInventario TEXT,
         valorAtual REAL,
         statusBem TEXT,
+        inventariadoPor TEXT,
         createdAt TEXT,
         updatedAt TEXT,
         FOREIGN KEY (userId) REFERENCES users(id)
@@ -61,6 +62,16 @@ function init() {
     `);
 
     dbAvailable = true;
+    // Migration: ensure column inventariadoPor exists
+    try {
+      const cols = db.prepare("PRAGMA table_info('inventory')").all();
+      const hasInventariadoPor = Array.isArray(cols) && cols.some(c => c.name === 'inventariadoPor');
+      if (!hasInventariadoPor) {
+        db.prepare('ALTER TABLE inventory ADD COLUMN inventariadoPor TEXT').run();
+      }
+    } catch (migErr) {
+      console.warn('SQLite migration warning (inventariadoPor):', migErr?.message || migErr);
+    }
   } catch (e) {
     console.error('Erro ao inicializar SQLite:', e?.message || e);
     dbAvailable = false;
