@@ -117,6 +117,26 @@ class AuthController {
       const hashedPassword = await bcrypt.hash(password, saltRounds);
       const created = Users.createUser({ email: cleanEmail, password: hashedPassword, name: finalName });
 
+      // Tentar criar usuário correspondente no Firebase Admin (opcional)
+      // Isto garante que a exclusão futura também remova do Firebase, caso credenciais estejam configuradas
+      try {
+        // Se já existir no Firebase, não falhar
+        try {
+          await firebaseAuth.getUserByEmail(cleanEmail);
+        } catch (e) {
+          // Não encontrado: criar
+          await firebaseAuth.createUser({
+            email: cleanEmail,
+            password: password,
+            displayName: finalName || cleanEmail
+          });
+          console.log('[AuthController] Usuário criado no Firebase Admin:', cleanEmail);
+        }
+      } catch (firebaseErr) {
+        // Não bloquear fluxo caso credenciais não estejam configuradas ou email já exista
+        console.warn('[AuthController] Não foi possível criar usuário no Firebase:', firebaseErr?.message || firebaseErr);
+      }
+
       // Gerar JWT token
       const token = jwt.sign(
         {

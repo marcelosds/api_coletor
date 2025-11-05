@@ -32,16 +32,22 @@ class UsersController {
         });
       }
 
-      // Tentar remover usuário no Firebase (busca por email)
+      // Tentar remover usuário no Firebase: preferir UID do token, senão buscar por email
       let firebaseDeleted = false;
       try {
-        const record = await firebaseAuth.getUserByEmail(user.email);
-        if (record?.uid) {
-          await firebaseAuth.deleteUser(record.uid);
+        const tokenFirebaseUid = req.user?.firebaseUid;
+        if (tokenFirebaseUid) {
+          await firebaseAuth.deleteUser(tokenFirebaseUid);
           firebaseDeleted = true;
+        } else {
+          const record = await firebaseAuth.getUserByEmail(user.email);
+          if (record?.uid) {
+            await firebaseAuth.deleteUser(record.uid);
+            firebaseDeleted = true;
+          }
         }
       } catch (fbErr) {
-        // Se não existir no Firebase, seguir sem erro
+        // Se não existir no Firebase ou credenciais ausentes, seguir sem erro
         console.warn('[UsersController] Usuário não encontrado no Firebase ou erro ao deletar:', fbErr?.message || fbErr);
       }
 
