@@ -34,6 +34,26 @@ if (!serviceAccount) {
   }
 }
 
+// Fallback adicional: tentar localizar arquivo padrão no repositório raiz
+if (!serviceAccount) {
+  const candidatePaths = [
+    path.resolve(__dirname, '../../coletoroficial-firebase-adminsdk-fbsvc-3916ca360e.json'),
+    path.resolve(process.cwd(), '../coletoroficial-firebase-adminsdk-fbsvc-3916ca360e.json')
+  ];
+  for (const p of candidatePaths) {
+    try {
+      if (fs.existsSync(p)) {
+        const json = fs.readFileSync(p, 'utf8');
+        serviceAccount = JSON.parse(json);
+        console.log('Firebase: credenciais encontradas via fallback em', p);
+        break;
+      }
+    } catch (e) {
+      // silencioso; tentará próximo caminho ou applicationDefault
+    }
+  }
+}
+
 let firestoreAvailable = false;
 
 if (!admin.apps.length) {

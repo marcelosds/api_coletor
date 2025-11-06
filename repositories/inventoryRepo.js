@@ -5,6 +5,14 @@ function genId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function firstName(name) {
+  if (typeof name !== 'string') return null;
+  const trimmed = name.trim();
+  if (!trimmed) return null;
+  const parts = trimmed.split(/\s+/);
+  return parts[0] || trimmed;
+}
+
 function toCanonicalRow(row) {
   if (!row) return null;
   return {
@@ -108,7 +116,7 @@ function create(data, userId) {
     id, userId, data.codigo || null, data.placa || null, data.descricao || null,
     data.localizacaoNome || null, data.situacaoNome || null, data.estadoConservacaoNome || null, data.dsObservacao || null,
     data.codigoLocalizacao || null, data.codigoSituacao || null, data.codigoEstado || null,
-    data.nrInventario || null, data.valorAtual ?? null, data.statusBem || null, data.inventariadoPor || null,
+    data.nrInventario || null, data.valorAtual ?? null, data.statusBem || null, firstName(data.inventariadoPor) || null,
     ts, ts
   );
   const row = db.prepare('SELECT * FROM inventory WHERE id = ?').get(id);
@@ -119,7 +127,24 @@ function updateById(id, data) {
   const existing = db.prepare('SELECT * FROM inventory WHERE id = ?').get(id);
   if (!existing) return null;
   const statusBem = existing.statusBem || '';
-  if (statusBem && String(statusBem).trim().startsWith('Bem Inventariado')) {
+  const isInventariado = statusBem && String(statusBem).trim().startsWith('Bem Inventariado');
+  if (isInventariado) {
+    const incomingInvPorRaw = typeof data.inventariadoPor === 'string' ? data.inventariadoPor.trim() : null;
+    const incomingInvPor = firstName(incomingInvPorRaw);
+    const existingInvPor = existing.inventariadoPor ? String(existing.inventariadoPor).trim() : '';
+    // Se item já inventariado, permitir apenas ajustar inventariadoPor quando vier preenchido e ainda não existir
+    if (incomingInvPor && !existingInvPor) {
+      const ts = nowISO();
+      db.prepare(`
+        UPDATE inventory SET
+          inventariadoPor = COALESCE(?, inventariadoPor),
+          updatedAt = ?
+        WHERE id = ?
+      `).run(incomingInvPor || null, ts, id);
+      const row = db.prepare('SELECT * FROM inventory WHERE id = ?').get(id);
+      return { skipped: false, item: toCanonicalRow(row) };
+    }
+    // Caso contrário, manter comportamento de ignorar atualização
     return { skipped: true, item: toCanonicalRow(existing) };
   }
 
@@ -147,7 +172,7 @@ function updateById(id, data) {
     data.localizacaoNome ?? null, data.situacaoNome ?? null, data.estadoConservacaoNome ?? null, data.dsObservacao ?? null,
     data.codigoLocalizacao ?? null, data.codigoSituacao ?? null, data.codigoEstado ?? null,
     data.nrInventario ?? null, data.valorAtual ?? null, data.statusBem ?? null,
-    data.inventariadoPor ?? null,
+    firstName(data.inventariadoPor) ?? null,
     ts, id
   );
   const row = db.prepare('SELECT * FROM inventory WHERE id = ?').get(id);
@@ -272,7 +297,21 @@ function sync(items = [], userId) {
     if (existing) {
       const statusBem = existing.statusBem || '';
       if (statusBem && String(statusBem).trim().startsWith('Bem Inventariado')) {
-        results.push({ id: existing.id, action: 'skipped' });
+        // Permitir apenas atualizar inventariadoPor se vier preenchido e ainda não existir
+        const incomingInvPor = item.inventariadoPor ? firstName(String(item.inventariadoPor)) : '';
+        const existingInvPor = existing.inventariadoPor ? String(existing.inventariadoPor).trim() : '';
+        if (incomingInvPor && !existingInvPor) {
+          const tsUpdate = ts; // ts já definido acima
+          db.prepare(`
+            UPDATE inventory SET
+              inventariadoPor = ?,
+              updatedAt = ?
+            WHERE id = ?
+          `).run(incomingInvPor, tsUpdate, existing.id);
+          results.push({ id: existing.id, action: 'updated-inventariadoPor' });
+        } else {
+          results.push({ id: existing.id, action: 'skipped' });
+        }
       } else {
         update.run(
           item.codigo ?? existing.codigo,
@@ -288,6 +327,7 @@ function sync(items = [], userId) {
           item.nrInventario ?? existing.nrInventario,
           item.valorAtual ?? existing.valorAtual,
           item.statusBem ?? existing.statusBem,
+          firstName(item.inventariadoPor) ?? existing.inventariadoPor,
           ts,
           existing.id
         );
@@ -310,6 +350,7 @@ function sync(items = [], userId) {
         item.nrInventario ?? null,
         item.valorAtual ?? null,
         item.statusBem ?? null,
+        item.inventariadoPor ?? null,
         ts, ts
       );
       results.push({ id, action: 'created' });
