@@ -349,12 +349,30 @@ class AuthController {
   // Verificar status de autenticação
   async me(req, res) {
     try {
-      const user = req.user;
+      // Buscar dados atualizados no banco (nome pode ter mudado)
+      const tokenUser = req.user || {};
+      let freshUser = null;
+      if (tokenUser.uid) {
+        freshUser = Users.getById(String(tokenUser.uid));
+      }
+      if (!freshUser && tokenUser.email) {
+        freshUser = Users.findByEmail(String(tokenUser.email).trim().toLowerCase());
+      }
+
+      const finalUser = freshUser ? {
+        id: freshUser.id,
+        uid: freshUser.id,
+        email: freshUser.email,
+        name: freshUser.name,
+        fullName: freshUser.name,
+        createdAt: freshUser.createdAt,
+        updatedAt: freshUser.updatedAt
+      } : tokenUser;
 
       res.json({
         success: true,
         data: {
-          user,
+          user: finalUser,
           authType: req.authType || 'unknown'
         }
       });

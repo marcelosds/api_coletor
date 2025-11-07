@@ -1,9 +1,67 @@
 // api/controllers/usersController.js
 const Users = require('../repositories/userRepo');
-const inventoryRepo = require('../repositories/inventoryRepo');
 const { auth: firebaseAuth } = require('../config/firebase');
 
 class UsersController {
+  // Atualiza dados do próprio usuário (nome)
+  async updateMe(req, res) {
+    try {
+      const requesterId = req.user?.uid || req.user?.id;
+      const email = req.user?.email;
+      const { name, fullName } = req.body || {};
+      const newName = (name || fullName || '').trim();
+
+      if (!requesterId && !email) {
+        return res.status(400).json({
+          error: 'Usuário não identificado',
+          message: 'Não foi possível identificar o usuário autenticado'
+        });
+      }
+
+      if (!newName) {
+        return res.status(400).json({
+          error: 'Nome inválido',
+          message: 'O nome é obrigatório para atualização'
+        });
+      }
+
+      let updated;
+      if (requesterId) {
+        updated = Users.updateNameById(String(requesterId), newName);
+      } else if (email) {
+        updated = Users.updateNameByEmail(String(email).trim().toLowerCase(), newName);
+      }
+
+      if (!updated) {
+        return res.status(404).json({
+          error: 'Usuário não encontrado',
+          message: 'Não foi possível localizar usuário para atualização'
+        });
+      }
+
+      return res.json({
+        success: true,
+        message: 'Perfil atualizado com sucesso',
+        data: {
+          user: {
+            id: updated.id,
+            uid: updated.id,
+            email: updated.email,
+            name: updated.name,
+            fullName: updated.name,
+            updatedAt: updated.updatedAt,
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Erro ao atualizar perfil:', error);
+      return res.status(500).json({
+        error: 'Erro interno do servidor',
+        message: 'Erro ao atualizar perfil do usuário'
+      });
+    }
+  }
+
   // Excluir usuário e remover do Firebase (se existir)
   async delete(req, res) {
     try {
@@ -51,9 +109,6 @@ class UsersController {
         console.warn('[UsersController] Usuário não encontrado no Firebase ou erro ao deletar:', fbErr?.message || fbErr);
       }
 
-      // Remover inventários associados para evitar violação de FK
-      const removedInventories = inventoryRepo.deleteByUserId(id);
-
       // Remover usuário no SQLite
       const removedUser = Users.deleteById(id);
       if (!removedUser) {
@@ -67,8 +122,7 @@ class UsersController {
         success: true,
         message: 'Usuário excluído com sucesso',
         data: {
-          firebaseDeleted,
-          removedInventories
+          firebaseDeleted
         }
       });
     } catch (error) {

@@ -51,10 +51,42 @@ function deleteByEmail(email) {
   }
 }
 
+// Atualiza o nome do usuário por ID
+function updateNameById(id, name) {
+  try {
+    const ts = nowISO();
+    const res = db.prepare('UPDATE users SET name = ?, updatedAt = ? WHERE id = ?').run(name, ts, id);
+    if (res.changes > 0) {
+      return getById(id);
+    }
+    return null;
+  } catch (error) {
+    console.error('[UserRepo] Erro ao atualizar nome por id:', error);
+    throw error;
+  }
+}
+
+// Atualiza o nome do usuário por email
+function updateNameByEmail(email, name) {
+  try {
+    const ts = nowISO();
+    const res = db.prepare('UPDATE users SET name = ?, updatedAt = ? WHERE email = ?').run(name, ts, email);
+    if (res.changes > 0) {
+      return findByEmail(email);
+    }
+    return null;
+  } catch (error) {
+    console.error('[UserRepo] Erro ao atualizar nome por email:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   createUser,
   findByEmail,
   getById,
   deleteById,
   deleteByEmail,
+  updateNameById,
+  updateNameByEmail,
 };

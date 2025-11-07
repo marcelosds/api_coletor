@@ -22,7 +22,7 @@ function init() {
     db.pragma('journal_mode = WAL');
     db.pragma('foreign_keys = ON');
 
-    // Criar tabelas se não existirem
+    // Criar tabelas se não existirem (com FK que não apaga inventários)
     db.exec(`
       CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
@@ -35,7 +35,7 @@ function init() {
 
       CREATE TABLE IF NOT EXISTS inventory (
         id TEXT PRIMARY KEY,
-        userId TEXT NOT NULL,
+        userId TEXT,
         codigo TEXT,
         placa TEXT,
         descricao TEXT,
@@ -52,7 +52,7 @@ function init() {
         inventariadoPor TEXT,
         createdAt TEXT,
         updatedAt TEXT,
-        FOREIGN KEY (userId) REFERENCES users(id)
+        FOREIGN KEY (userId) REFERENCES users(id) ON DELETE SET NULL
       );
 
       CREATE INDEX IF NOT EXISTS idx_inventory_userId ON inventory (userId);
@@ -62,15 +62,83 @@ function init() {
     `);
 
     dbAvailable = true;
-    // Migration: ensure column inventariadoPor exists
+    // Migrações: garantir que o FK de inventory não apague itens ao excluir usuário
     try {
       const cols = db.prepare("PRAGMA table_info('inventory')").all();
+      const fkList = db.prepare("PRAGMA foreign_key_list('inventory')").all();
+      const userIdCol = Array.isArray(cols) ? cols.find(c => c.name === 'userId') : null;
+      const fkToUsers = Array.isArray(fkList) ? fkList.find(fk => fk.table === 'users' && fk.from === 'userId') : null;
+
+      const needsNullableUserId = !!userIdCol && userIdCol.notnull === 1;
+      const needsOnDeleteSetNull = !fkToUsers || (fkToUsers.on_delete && fkToUsers.on_delete.toUpperCase() !== 'SET NULL');
+
+      if (needsNullableUserId || needsOnDeleteSetNull) {
+        // Realizar migração recriando a tabela inventory
+        db.transaction(() => {
+          db.exec(`
+            CREATE TABLE IF NOT EXISTS inventory_tmp (
+              id TEXT PRIMARY KEY,
+              userId TEXT,
+              codigo TEXT,
+              placa TEXT,
+              descricao TEXT,
+              localizacaoNome TEXT,
+              situacaoNome TEXT,
+              estadoConservacaoNome TEXT,
+              dsObservacao TEXT,
+              codigoLocalizacao TEXT,
+              codigoSituacao TEXT,
+              codigoEstado TEXT,
+              nrInventario TEXT,
+              valorAtual REAL,
+              statusBem TEXT,
+              inventariadoPor TEXT,
+              createdAt TEXT,
+              updatedAt TEXT,
+              FOREIGN KEY (userId) REFERENCES users(id) ON DELETE SET NULL
+            );
+          `);
+
+          // Copiar dados
+          const insertTmp = db.prepare(`
+            INSERT INTO inventory_tmp (
+              id, userId, codigo, placa, descricao,
+              localizacaoNome, situacaoNome, estadoConservacaoNome, dsObservacao,
+              codigoLocalizacao, codigoSituacao, codigoEstado,
+              nrInventario, valorAtual, statusBem, inventariadoPor,
+              createdAt, updatedAt
+            )
+            SELECT 
+              id, userId, codigo, placa, descricao,
+              localizacaoNome, situacaoNome, estadoConservacaoNome, dsObservacao,
+              codigoLocalizacao, codigoSituacao, codigoEstado,
+              nrInventario, valorAtual, statusBem, inventariadoPor,
+              createdAt, updatedAt
+            FROM inventory;
+          `);
+          insertTmp.run();
+
+          // Dropar tabela antiga e renomear
+          db.exec(`DROP TABLE inventory;`);
+          db.exec(`ALTER TABLE inventory_tmp RENAME TO inventory;`);
+
+          // Recriar índices
+          db.exec(`
+            CREATE INDEX IF NOT EXISTS idx_inventory_userId ON inventory (userId);
+            CREATE INDEX IF NOT EXISTS idx_inventory_updatedAt ON inventory (updatedAt);
+            CREATE INDEX IF NOT EXISTS idx_inventory_codigo ON inventory (codigo);
+            CREATE INDEX IF NOT EXISTS idx_inventory_placa ON inventory (placa);
+          `);
+        })();
+      }
+
+      // Migration adicional: garantir coluna inventariadoPor (caso bases antigas faltem)
       const hasInventariadoPor = Array.isArray(cols) && cols.some(c => c.name === 'inventariadoPor');
       if (!hasInventariadoPor) {
         db.prepare('ALTER TABLE inventory ADD COLUMN inventariadoPor TEXT').run();
       }
     } catch (migErr) {
-      console.warn('SQLite migration warning (inventariadoPor):', migErr?.message || migErr);
+      console.warn('SQLite migration warning:', migErr?.message || migErr);
     }
   } catch (e) {
     console.error('Erro ao inicializar SQLite:', e?.message || e);

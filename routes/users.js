@@ -18,8 +18,11 @@ router.get('/profile', (req, res) => {
   });
 });
 
-// Exclusão de usuário (apenas o próprio usuário pode excluir sua conta)
+// Atualização do perfil do usuário autenticado
 const usersController = require('../controllers/usersController');
+router.patch('/me', usersController.updateMe);
+
+// Exclusão de usuário (apenas o próprio usuário pode excluir sua conta)
 router.delete('/:id', usersController.delete);
 
 module.exports = router;
