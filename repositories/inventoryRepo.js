@@ -129,23 +129,38 @@ function updateById(id, data) {
   const statusBem = existing.statusBem || '';
   const isInventariado = statusBem && String(statusBem).trim().startsWith('Bem Inventariado');
   if (isInventariado) {
+    // Quando já inventariado, permitir atualização de campos de catálogo e observação,
+    // além de inventariadoPor. Campos estruturais permanecem bloqueados.
     const incomingInvPorRaw = typeof data.inventariadoPor === 'string' ? data.inventariadoPor.trim() : null;
     const incomingInvPor = firstName(incomingInvPorRaw);
-    const existingInvPor = existing.inventariadoPor ? String(existing.inventariadoPor).trim() : '';
-    // Se item já inventariado, permitir apenas ajustar inventariadoPor quando vier preenchido e ainda não existir
-    if (incomingInvPor && !existingInvPor) {
-      const ts = nowISO();
-      db.prepare(`
-        UPDATE inventory SET
-          inventariadoPor = COALESCE(?, inventariadoPor),
-          updatedAt = ?
-        WHERE id = ?
-      `).run(incomingInvPor || null, ts, id);
-      const row = db.prepare('SELECT * FROM inventory WHERE id = ?').get(id);
-      return { skipped: false, item: toCanonicalRow(row) };
-    }
-    // Caso contrário, manter comportamento de ignorar atualização
-    return { skipped: true, item: toCanonicalRow(existing) };
+
+    const ts = nowISO();
+    db.prepare(`
+      UPDATE inventory SET
+        localizacaoNome = COALESCE(?, localizacaoNome),
+        situacaoNome = COALESCE(?, situacaoNome),
+        estadoConservacaoNome = COALESCE(?, estadoConservacaoNome),
+        dsObservacao = COALESCE(?, dsObservacao),
+        codigoLocalizacao = COALESCE(?, codigoLocalizacao),
+        codigoSituacao = COALESCE(?, codigoSituacao),
+        codigoEstado = COALESCE(?, codigoEstado),
+        inventariadoPor = COALESCE(?, inventariadoPor),
+        updatedAt = ?
+      WHERE id = ?
+    `).run(
+      data.localizacaoNome ?? null,
+      data.situacaoNome ?? null,
+      data.estadoConservacaoNome ?? null,
+      data.dsObservacao ?? null,
+      data.codigoLocalizacao ?? null,
+      data.codigoSituacao ?? null,
+      data.codigoEstado ?? null,
+      incomingInvPor ?? null,
+      ts,
+      id
+    );
+    const row = db.prepare('SELECT * FROM inventory WHERE id = ?').get(id);
+    return { skipped: false, item: toCanonicalRow(row) };
   }
 
   const ts = nowISO();
