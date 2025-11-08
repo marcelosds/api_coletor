@@ -17,7 +17,6 @@ if (Test-Path $installPath) {
 
         Write-Host "Finalizando processos PM2 e Node.js..." -ForegroundColor Yellow
         try {
-            # Finaliza todos os processos Node e PM2
             Stop-Process -Name "node" -Force -ErrorAction SilentlyContinue
             pm2 kill | Out-Null
             Start-Sleep -Seconds 3
@@ -38,31 +37,21 @@ if (Test-Path $installPath) {
     }
 }
 
-# Clona o repositório
+# Clona o repositório completo (mantendo .env conforme o repositório)
 Write-Host "Clonando repositório da API..." -ForegroundColor Cyan
 git clone $repoUrl $installPath
 
-# Entra na pasta
+# Entra na pasta clonada
 Set-Location $installPath
 
 # Instala dependências
 Write-Host "Instalando dependências npm..." -ForegroundColor Cyan
 npm install
 
-# Instala PM2 (caso não tenha)
-Write-Host "Verificando PM2..." -ForegroundColor Cyan
-if (-not (Get-Command pm2 -ErrorAction SilentlyContinue)) {
-    npm install -g pm2
-}
-
-# Configura o PM2 para rodar a API como serviço
-Write-Host "Configurando serviço no PM2..." -ForegroundColor Cyan
+# Inicia serviço no PM2
+Write-Host "Iniciando serviço no PM2..." -ForegroundColor Cyan
 pm2 start "$installPath\src\server.js" --name "api_coletor"
 pm2 save
 pm2 startup | Out-Null
 
-Write-Host "====================================="
-Write-Host "✅ Instalação concluída com sucesso!"
-Write-Host "A API COLETOR está rodando via PM2."
-Write-Host "Para verificar o status: pm2 list"
-Write-Host "====================================="
+Write-Host "Instalação concluída com sucesso!" -ForegroundColor Green
