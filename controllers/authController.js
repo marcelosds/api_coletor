@@ -42,24 +42,12 @@ class AuthController {
         });
       }
 
-      const headerTenant = req.headers['x-tenant-id'] || req.headers['X-Tenant-Id'];
-      const bodyTenant = req.body?.tenantId || req.body?.tenant_id || req.body?.cnpj;
-      const providedTenant = bodyTenant || headerTenant || null;
-      if (!user.tenantId && !providedTenant) {
+      const tenantId = user.tenantId || null;
+      if (!tenantId) {
         return res.status(400).json({
-          error: 'tenantId requerido',
-          message: 'Informe tenantId (body ou header x-tenant-id)'
+          error: 'Conta sem CNPJ associado',
+          message: 'Conclua o cadastro do usuário com CNPJ para acessar'
         });
-      }
-      if (user.tenantId && providedTenant && String(user.tenantId) !== String(providedTenant)) {
-        return res.status(401).json({
-          error: 'Tenant inválido',
-          message: 'Associação usuário/tenant não corresponde'
-        });
-      }
-      let tenantId = user.tenantId || providedTenant || null;
-      if (!user.tenantId && tenantId) {
-        try { Users.updateTenantIdByEmail(user.email, String(tenantId)); } catch {}
       }
 
       // Gerar JWT token
