@@ -38,7 +38,7 @@ function toCanonicalRow(row) {
   };
 }
 
-function list({ nrInventario, page = 1, limit = 50, q, field, since }) {
+function list({ nrInventario, page = 1, limit = 50, q, field, since, tenantId }) {
   const offset = (page - 1) * limit;
   let where = '1=1';
   const params = [];
@@ -58,13 +58,29 @@ function list({ nrInventario, page = 1, limit = 50, q, field, since }) {
     params.push(`${q}%`);
   }
 
-  const rows = db.prepare(`
-    SELECT * FROM inventory WHERE ${where}
-    ORDER BY updatedAt DESC
-    LIMIT ? OFFSET ?
-  `).all(...params, limit, offset);
-
-  const total = db.prepare(`SELECT COUNT(*) as c FROM inventory WHERE ${where}`).get(...params).c;
+  let rows = [];
+  let total = 0;
+  if (tenantId) {
+    rows = db.prepare(`
+      SELECT inventory.* FROM inventory
+      JOIN users u ON u.id = inventory.userId
+      WHERE ${where} AND u.tenantId = ?
+      ORDER BY inventory.updatedAt DESC
+      LIMIT ? OFFSET ?
+    `).all(...params, tenantId, limit, offset);
+    total = db.prepare(`
+      SELECT COUNT(*) as c FROM inventory
+      JOIN users u ON u.id = inventory.userId
+      WHERE ${where} AND u.tenantId = ?
+    `).get(...params, tenantId).c;
+  } else {
+    rows = db.prepare(`
+      SELECT * FROM inventory WHERE ${where}
+      ORDER BY updatedAt DESC
+      LIMIT ? OFFSET ?
+    `).all(...params, limit, offset);
+    total = db.prepare(`SELECT COUNT(*) as c FROM inventory WHERE ${where}`).get(...params).c;
+  }
   return {
     items: rows.map(toCanonicalRow),
     total,
@@ -74,28 +90,49 @@ function list({ nrInventario, page = 1, limit = 50, q, field, since }) {
   };
 }
 
-function getById(id, nrInventario) {
-  let sql = 'SELECT * FROM inventory WHERE id = ?';
-  const params = [id];
+function getById(id, nrInventario, tenantId) {
+  let sql = 'SELECT inventory.* FROM inventory';
+  const params = [];
+  if (tenantId) sql += ' JOIN users u ON u.id = inventory.userId';
+  sql += ' WHERE inventory.id = ?';
+  params.push(id);
   if (nrInventario) {
-    sql += ' AND nrInventario = ?';
+    sql += ' AND inventory.nrInventario = ?';
     params.push(nrInventario);
+  }
+  if (tenantId) {
+    sql += ' AND u.tenantId = ?';
+    params.push(tenantId);
   }
   const row = db.prepare(sql).get(...params);
   return toCanonicalRow(row);
 }
 
-function getByCode(code, nrInventario) {
+function getByCode(code, nrInventario, tenantId) {
   let row = null;
   if (nrInventario) {
-    row = db.prepare('SELECT * FROM inventory WHERE nrInventario = ? AND codigo = ?').get(nrInventario, code);
-    if (!row) {
-      row = db.prepare('SELECT * FROM inventory WHERE nrInventario = ? AND placa = ?').get(nrInventario, code);
+    if (tenantId) {
+      row = db.prepare('SELECT inventory.* FROM inventory JOIN users u ON u.id = inventory.userId WHERE inventory.nrInventario = ? AND inventory.codigo = ? AND u.tenantId = ?').get(nrInventario, code, tenantId);
+      if (!row) {
+        row = db.prepare('SELECT inventory.* FROM inventory JOIN users u ON u.id = inventory.userId WHERE inventory.nrInventario = ? AND inventory.placa = ? AND u.tenantId = ?').get(nrInventario, code, tenantId);
+      }
+    } else {
+      row = db.prepare('SELECT * FROM inventory WHERE nrInventario = ? AND codigo = ?').get(nrInventario, code);
+      if (!row) {
+        row = db.prepare('SELECT * FROM inventory WHERE nrInventario = ? AND placa = ?').get(nrInventario, code);
+      }
     }
   } else {
-    row = db.prepare('SELECT * FROM inventory WHERE codigo = ?').get(code);
-    if (!row) {
-      row = db.prepare('SELECT * FROM inventory WHERE placa = ?').get(code);
+    if (tenantId) {
+      row = db.prepare('SELECT inventory.* FROM inventory JOIN users u ON u.id = inventory.userId WHERE inventory.codigo = ? AND u.tenantId = ?').get(code, tenantId);
+      if (!row) {
+        row = db.prepare('SELECT inventory.* FROM inventory JOIN users u ON u.id = inventory.userId WHERE inventory.placa = ? AND u.tenantId = ?').get(code, tenantId);
+      }
+    } else {
+      row = db.prepare('SELECT * FROM inventory WHERE codigo = ?').get(code);
+      if (!row) {
+        row = db.prepare('SELECT * FROM inventory WHERE placa = ?').get(code);
+      }
     }
   }
   return toCanonicalRow(row);
@@ -123,8 +160,17 @@ function create(data, userId) {
   return toCanonicalRow(row);
 }
 
-function updateById(id, data) {
-  const existing = db.prepare('SELECT * FROM inventory WHERE id = ?').get(id);
+function updateById(id, data, tenantId) {
+  let selectSql = 'SELECT inventory.* FROM inventory';
+  const params = [];
+  if (tenantId) selectSql += ' JOIN users u ON u.id = inventory.userId';
+  selectSql += ' WHERE inventory.id = ?';
+  params.push(id);
+  if (tenantId) {
+    selectSql += ' AND u.tenantId = ?';
+    params.push(tenantId);
+  }
+  const existing = db.prepare(selectSql).get(...params);
   if (!existing) return null;
   const statusBem = existing.statusBem || '';
   const isInventariado = statusBem && String(statusBem).trim().startsWith('Bem Inventariado');
@@ -194,14 +240,26 @@ function updateById(id, data) {
   return { skipped: false, item: toCanonicalRow(row) };
 }
 
-function deleteById(id) {
-  const res = db.prepare('DELETE FROM inventory WHERE id = ?').run(id);
+function deleteById(id, tenantId) {
+  let sql = 'DELETE FROM inventory WHERE id = ?';
+  const params = [id];
+  if (tenantId) {
+    sql += ' AND EXISTS (SELECT 1 FROM users u WHERE u.id = inventory.userId AND u.tenantId = ?)';
+    params.push(tenantId);
+  }
+  const res = db.prepare(sql).run(...params);
   return res.changes > 0;
 }
 
-function deleteByInventario(nrInventario) {
+function deleteByInventario(nrInventario, tenantId) {
   if (!nrInventario) return 0;
-  const res = db.prepare('DELETE FROM inventory WHERE nrInventario = ?').run(nrInventario);
+  let sql = 'DELETE FROM inventory WHERE nrInventario = ?';
+  const params = [nrInventario];
+  if (tenantId) {
+    sql += ' AND EXISTS (SELECT 1 FROM users u WHERE u.id = inventory.userId AND u.tenantId = ?)';
+    params.push(tenantId);
+  }
+  const res = db.prepare(sql).run(...params);
   return res.changes || 0;
 }
 
@@ -215,13 +273,13 @@ function deleteByUserId(userId) {
   }
 }
 
-function updateByCode(code, data, nrInventario) {
-  const row = getByCode(code, nrInventario);
+function updateByCode(code, data, nrInventario, tenantId) {
+  const row = getByCode(code, nrInventario, tenantId);
   if (!row) return null;
-  return updateById(row.id, data);
+  return updateById(row.id, data, tenantId);
 }
 
-function distinctLocais(nrInventario) {
+function distinctLocais(nrInventario, tenantId) {
   let sql = `
     SELECT DISTINCT
       COALESCE(codigoLocalizacao, NULL) AS codigo,
@@ -234,11 +292,15 @@ function distinctLocais(nrInventario) {
     sql += ' AND nrInventario = ?';
     params.push(nrInventario);
   }
+  if (tenantId) {
+    sql += ' AND EXISTS (SELECT 1 FROM users u WHERE u.id = inventory.userId AND u.tenantId = ?)';
+    params.push(tenantId);
+  }
   const rows = db.prepare(sql).all(...params);
   return rows.map(r => ({ codigo: r.codigo || null, nome: r.nome })).filter(r => r && r.nome);
 }
 
-function distinctSituacoes(nrInventario) {
+function distinctSituacoes(nrInventario, tenantId) {
   let sql = `
     SELECT DISTINCT
       COALESCE(codigoSituacao, NULL) AS codigo,
@@ -251,11 +313,15 @@ function distinctSituacoes(nrInventario) {
     sql += ' AND nrInventario = ?';
     params.push(nrInventario);
   }
+  if (tenantId) {
+    sql += ' AND EXISTS (SELECT 1 FROM users u WHERE u.id = inventory.userId AND u.tenantId = ?)';
+    params.push(tenantId);
+  }
   const rows = db.prepare(sql).all(...params);
   return rows.map(r => ({ codigo: r.codigo || null, nome: r.nome }));
 }
 
-function distinctEstados(nrInventario) {
+function distinctEstados(nrInventario, tenantId) {
   let sql = `
     SELECT DISTINCT
       COALESCE(codigoEstado, NULL) AS codigo,
@@ -267,6 +333,10 @@ function distinctEstados(nrInventario) {
   if (nrInventario) {
     sql += ' AND nrInventario = ?';
     params.push(nrInventario);
+  }
+  if (tenantId) {
+    sql += ' AND EXISTS (SELECT 1 FROM users u WHERE u.id = inventory.userId AND u.tenantId = ?)';
+    params.push(tenantId);
   }
   const rows = db.prepare(sql).all(...params);
   return rows.map(r => ({ codigo: r.codigo || null, nome: r.nome }));

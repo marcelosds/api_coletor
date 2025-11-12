@@ -1,6 +1,7 @@
 // api/middleware/auth.js
 const jwt = require('jsonwebtoken');
 const config = require('../config/config');
+const Users = require('../repositories/userRepo');
 
 // Middleware para verificar JWT token
 const verifyJWT = async (req, res, next) => {
@@ -56,6 +57,19 @@ const verifyAuth = async (req, res, next) => {
     const token = authHeader.substring(7);
     try {
       const decoded = jwt.verify(token, config.jwt.secret);
+      if (!decoded || !decoded.uid || !decoded.tenantId) {
+        return res.status(401).json({
+          error: 'Token inválido',
+          message: 'Token sem tenantId'
+        });
+      }
+      const dbUser = Users.getById(String(decoded.uid)) || (decoded.email ? Users.findByEmail(String(decoded.email).trim().toLowerCase()) : null);
+      if (dbUser && dbUser.tenantId && String(dbUser.tenantId) !== String(decoded.tenantId)) {
+        return res.status(401).json({
+          error: 'Tenant inválido',
+          message: 'Token não corresponde ao tenant do usuário'
+        });
+      }
       req.user = decoded;
       req.authType = 'jwt';
       next();

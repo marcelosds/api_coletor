@@ -116,6 +116,7 @@ class InventoryController {
   async getAll(req, res) {
     try {
       const { page = 1, limit = 50, q, field, since, nrInventario } = req.query;
+      const tenantId = req.user?.tenantId || null;
       const result = inventoryRepo.list({
         nrInventario: nrInventario || null,
         page: parseInt(page, 10),
@@ -123,6 +124,7 @@ class InventoryController {
         q: q || null,
         field: field || null,
         since: since || null,
+        tenantId,
       });
       res.json({
         success: true,
@@ -150,7 +152,8 @@ class InventoryController {
     try {
       const { id } = req.params;
       const { nrInventario } = req.query;
-      const item = inventoryRepo.getById(id, nrInventario || null);
+      const tenantId = req.user?.tenantId || null;
+      const item = inventoryRepo.getById(id, nrInventario || null, tenantId);
       if (!item) {
         return res.status(404).json({
           error: 'Item não encontrado',
@@ -172,7 +175,8 @@ class InventoryController {
     try {
       const { code } = req.params;
       const { nrInventario } = req.query;
-      const item = inventoryRepo.getByCode(code, nrInventario || null);
+      const tenantId = req.user?.tenantId || null;
+      const item = inventoryRepo.getByCode(code, nrInventario || null, tenantId);
       if (!item) {
         return res.status(404).json({
           error: 'Item não encontrado',
@@ -210,7 +214,8 @@ class InventoryController {
     try {
       const { id } = req.params;
       const normalized = normalizeInput(req.body);
-      const result = inventoryRepo.updateById(id, normalized);
+      const tenantId = req.user?.tenantId || null;
+      const result = inventoryRepo.updateById(id, normalized, tenantId);
       if (!result) {
         return res.status(404).json({
           error: 'Item não encontrado',
@@ -241,7 +246,8 @@ class InventoryController {
       const { code } = req.params;
       const { nrInventario } = req.query;
       const normalized = normalizeInput(req.body);
-      const result = inventoryRepo.updateByCode(code, normalized, nrInventario || null);
+      const tenantId = req.user?.tenantId || null;
+      const result = inventoryRepo.updateByCode(code, normalized, nrInventario || null, tenantId);
       if (!result) {
         return res.status(404).json({
           error: 'Item não encontrado',
@@ -270,7 +276,8 @@ class InventoryController {
   async delete(req, res) {
     try {
       const { id } = req.params;
-      const ok = inventoryRepo.deleteById(id);
+      const tenantId = req.user?.tenantId || null;
+      const ok = inventoryRepo.deleteById(id, tenantId);
       if (!ok) {
         return res.status(404).json({
           error: 'Item não encontrado',
@@ -297,7 +304,8 @@ class InventoryController {
           message: 'É necessário informar nrInventario na query para exclusão em lote'
         });
       }
-      const removed = inventoryRepo.deleteByInventario(String(nrInventario).trim());
+      const tenantId = req.user?.tenantId || null;
+      const removed = inventoryRepo.deleteByInventario(String(nrInventario).trim(), tenantId);
       res.json({ success: true, message: 'Itens do inventário deletados', removed });
     } catch (error) {
       console.error('Erro ao deletar por nrInventario:', error);

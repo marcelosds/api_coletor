@@ -42,12 +42,33 @@ class AuthController {
         });
       }
 
+      const headerTenant = req.headers['x-tenant-id'] || req.headers['X-Tenant-Id'];
+      const bodyTenant = req.body?.tenantId || req.body?.tenant_id || req.body?.cnpj;
+      const providedTenant = bodyTenant || headerTenant || null;
+      if (!user.tenantId && !providedTenant) {
+        return res.status(400).json({
+          error: 'tenantId requerido',
+          message: 'Informe tenantId (body ou header x-tenant-id)'
+        });
+      }
+      if (user.tenantId && providedTenant && String(user.tenantId) !== String(providedTenant)) {
+        return res.status(401).json({
+          error: 'Tenant inválido',
+          message: 'Associação usuário/tenant não corresponde'
+        });
+      }
+      let tenantId = user.tenantId || providedTenant || null;
+      if (!user.tenantId && tenantId) {
+        try { Users.updateTenantIdByEmail(user.email, String(tenantId)); } catch {}
+      }
+
       // Gerar JWT token
       const token = jwt.sign(
         {
           uid: user.id,
           email: user.email,
-          name: user.name
+          name: user.name,
+          tenantId: tenantId || null
         },
         config.jwt.secret,
         { expiresIn: config.jwt.expiresIn }
@@ -59,6 +80,7 @@ class AuthController {
           uid: user.id,
           email: user.email,
           name: user.name,
+          tenantId: tenantId || null,
           type: 'refresh'
         },
         config.jwt.secret,
@@ -77,6 +99,7 @@ class AuthController {
             email: user.email,
             name: user.name,
             fullName: user.name,
+            tenantId: tenantId || null,
             createdAt: user.createdAt
           }
         }
@@ -94,9 +117,11 @@ class AuthController {
   // Registro de novo usuário em SQLite
   async register(req, res) {
     try {
-      const { email, password, name, fullName } = req.body;
+      const { email, password, name, fullName, tenantId: tenantIdBody, tenant_id, cnpj } = req.body;
       const cleanEmail = (email || '').trim().toLowerCase();
       const finalName = (name || fullName || '').trim();
+      const headerTenant = req.headers['x-tenant-id'] || req.headers['X-Tenant-Id'];
+      const resolvedTenantId = (tenantIdBody || tenant_id || cnpj || headerTenant || null);
       if (!cleanEmail || !password || password.length < 6) {
         return res.status(400).json({
           error: 'Dados inválidos',
@@ -115,7 +140,7 @@ class AuthController {
       // Hash da senha
       const saltRounds = 12;
       const hashedPassword = await bcrypt.hash(password, saltRounds);
-      const created = Users.createUser({ email: cleanEmail, password: hashedPassword, name: finalName });
+      const created = Users.createUser({ email: cleanEmail, password: hashedPassword, name: finalName, tenantId: resolvedTenantId || null });
 
       // Tentar criar usuário correspondente no Firebase Admin (opcional)
       // Isto garante que a exclusão futura também remova do Firebase, caso credenciais estejam configuradas
@@ -142,7 +167,8 @@ class AuthController {
         {
           uid: created.id,
           email: created.email,
-          name: created.name
+          name: created.name,
+          tenantId: resolvedTenantId || null
         },
         config.jwt.secret,
         { expiresIn: config.jwt.expiresIn }
@@ -154,6 +180,7 @@ class AuthController {
           uid: created.id,
           email: created.email,
           name: created.name,
+          tenantId: resolvedTenantId || null,
           type: 'refresh'
         },
         config.jwt.secret,
@@ -172,6 +199,7 @@ class AuthController {
             email: created.email,
             name: created.name,
             fullName: created.name,
+            tenantId: resolvedTenantId || null,
             createdAt: created.createdAt
           }
         }
@@ -229,11 +257,17 @@ class AuthController {
 
       // Garantir usuário em SQLite
       let user = Users.findByEmail(cleanEmail);
+      const headerTenantFb = req.headers['x-tenant-id'] || req.headers['X-Tenant-Id'];
+      const bodyTenantFb = req.body?.tenantId || req.body?.tenant_id || req.body?.cnpj;
       if (!user) {
         // Criar usuário com senha aleatória (não usada para login JWT direto)
         const randomPassword = await bcrypt.hash('firebase:' + decoded.uid + ':' + Date.now(), 10);
-        const created = Users.createUser({ email: cleanEmail, password: randomPassword, name: displayName || cleanEmail });
-        user = { id: created.id, email: created.email, name: created.name, createdAt: created.createdAt };
+        const created = Users.createUser({ email: cleanEmail, password: randomPassword, name: displayName || cleanEmail, tenantId: bodyTenantFb || headerTenantFb || null });
+        user = { id: created.id, email: created.email, name: created.name, tenantId: created.tenantId || null, createdAt: created.createdAt };
+      }
+      let tenantIdFb = user.tenantId || headerTenantFb || bodyTenantFb || null;
+      if (!user.tenantId && tenantIdFb) {
+        try { Users.updateTenantIdByEmail(user.email, String(tenantIdFb)); } catch {}
       }
 
       // Gerar JWT token do servidor
@@ -242,7 +276,8 @@ class AuthController {
           uid: user.id,
           email: user.email,
           name: user.name,
-          firebaseUid: decoded.uid
+          firebaseUid: decoded.uid,
+          tenantId: tenantIdFb || null
         },
         config.jwt.secret,
         { expiresIn: config.jwt.expiresIn }
@@ -255,6 +290,7 @@ class AuthController {
           email: user.email,
           name: user.name,
           firebaseUid: decoded.uid,
+          tenantId: tenantIdFb || null,
           type: 'refresh'
         },
         config.jwt.secret,
@@ -273,6 +309,7 @@ class AuthController {
             email: user.email,
             name: user.name,
             fullName: user.name,
+            tenantId: tenantIdFb || null,
             createdAt: user.createdAt
           }
         }
@@ -306,7 +343,8 @@ class AuthController {
         {
           uid: decoded.uid,
           email: decoded.email,
-          name: decoded.name
+          name: decoded.name,
+          tenantId: decoded.tenantId || null
         },
         config.jwt.secret,
         { expiresIn: config.jwt.expiresIn }
@@ -365,6 +403,7 @@ class AuthController {
         email: freshUser.email,
         name: freshUser.name,
         fullName: freshUser.name,
+        tenantId: freshUser.tenantId || null,
         createdAt: freshUser.createdAt,
         updatedAt: freshUser.updatedAt
       } : tokenUser;

@@ -29,6 +29,7 @@ function init() {
         email TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
         name TEXT,
+        tenantId TEXT,
         createdAt TEXT,
         updatedAt TEXT
       );
@@ -62,6 +63,16 @@ function init() {
     `);
 
     dbAvailable = true;
+    try {
+      const userCols = db.prepare("PRAGMA table_info('users')").all();
+      const hasTenantId = Array.isArray(userCols) && userCols.some(c => c.name === 'tenantId');
+      if (!hasTenantId) {
+        db.prepare('ALTER TABLE users ADD COLUMN tenantId TEXT').run();
+      }
+      db.exec("CREATE INDEX IF NOT EXISTS idx_users_tenant ON users(tenantId);");
+    } catch (migUsersErr) {
+      console.warn('SQLite users migration warning:', migUsersErr?.message || migUsersErr);
+    }
     // Migrações: garantir que o FK de inventory não apague itens ao excluir usuário
     try {
       const cols = db.prepare("PRAGMA table_info('inventory')").all();

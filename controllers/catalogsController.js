@@ -5,7 +5,8 @@ class CatalogsController {
   async getLocais(req, res) {
     try {
       const { nrInventario } = req.query;
-      const data = inventoryRepo.distinctLocais(nrInventario || null);
+      const tenantId = req.user?.tenantId || null;
+      const data = inventoryRepo.distinctLocais(nrInventario || null, tenantId);
       res.json({ success: true, data });
     } catch (error) {
       console.error('Erro ao obter locais:', error);
@@ -19,7 +20,8 @@ class CatalogsController {
   async getSituacoes(req, res) {
     try {
       const { nrInventario } = req.query;
-      const data = inventoryRepo.distinctSituacoes(nrInventario || null);
+      const tenantId = req.user?.tenantId || null;
+      const data = inventoryRepo.distinctSituacoes(nrInventario || null, tenantId);
       res.json({ success: true, data });
     } catch (error) {
       console.error('Erro ao obter situações:', error);
@@ -33,7 +35,8 @@ class CatalogsController {
   async getEstados(req, res) {
     try {
       const { nrInventario } = req.query;
-      const data = inventoryRepo.distinctEstados(nrInventario || null);
+      const tenantId = req.user?.tenantId || null;
+      const data = inventoryRepo.distinctEstados(nrInventario || null, tenantId);
       res.json({ success: true, data });
     } catch (error) {
       console.error('Erro ao obter estados:', error);

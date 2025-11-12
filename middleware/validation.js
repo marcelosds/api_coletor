@@ -36,8 +36,6 @@ const validateRegister = [
   body('password')
     .isLength({ min: 6 })
     .withMessage('Senha deve ter pelo menos 6 caracteres'),
-    // Simplificado: remover exigência de maiúscula/minúscula/número
-  // Aceitar tanto 'name' quanto 'fullName'; exigir ao menos um
   body('name')
     .optional()
     .isLength({ min: 2 })
@@ -52,6 +50,15 @@ const validateRegister = [
     .custom((_, { req }) => {
       if (!req.body.name && !req.body.fullName) {
         throw new Error('Nome é obrigatório (name ou fullName)');
+      }
+      return true;
+    }),
+  body()
+    .custom((_, { req }) => {
+      const headerTenant = req.headers['x-tenant-id'] || req.headers['X-Tenant-Id'];
+      const hasTenant = !!(req.body.tenantId || req.body.tenant_id || req.body.cnpj || headerTenant);
+      if (!hasTenant) {
+        throw new Error('tenantId é obrigatório (tenantId, tenant_id, cnpj ou header x-tenant-id)');
       }
       return true;
     }),

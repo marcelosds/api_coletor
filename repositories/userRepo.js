@@ -1,20 +1,20 @@
 // api/repositories/userRepo.js
 const { db, nowISO } = require('../db/sqlite');
 
-function createUser({ email, password, name }) {
+function createUser({ email, password, name, tenantId }) {
   try {
     const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;
     const ts = nowISO();
     console.log('[UserRepo] Criando usuário:', { id, email, name });
     
     const stmt = db.prepare(`
-      INSERT INTO users (id, email, password, name, createdAt, updatedAt)
-      VALUES (?,?,?,?,?,?)
+      INSERT INTO users (id, email, password, name, tenantId, createdAt, updatedAt)
+      VALUES (?,?,?,?,?,?,?)
     `);
-    const result = stmt.run(id, email, password, name || null, ts, ts);
+    const result = stmt.run(id, email, password, name || null, tenantId || null, ts, ts);
     
     console.log('[UserRepo] Usuário criado com sucesso:', { id, changes: result.changes });
-    return { id, email, name, createdAt: ts };
+    return { id, email, name, tenantId: tenantId || null, createdAt: ts };
   } catch (error) {
     console.error('[UserRepo] Erro ao criar usuário:', error);
     throw error;
@@ -81,6 +81,20 @@ function updateNameByEmail(email, name) {
   }
 }
 
+function updateTenantIdByEmail(email, tenantId) {
+  try {
+    const ts = nowISO();
+    const res = db.prepare('UPDATE users SET tenantId = ?, updatedAt = ? WHERE email = ?').run(tenantId, ts, email);
+    if (res.changes > 0) {
+      return findByEmail(email);
+    }
+    return null;
+  } catch (error) {
+    console.error('[UserRepo] Erro ao atualizar tenantId por email:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   createUser,
   findByEmail,
@@ -89,4 +103,5 @@ module.exports = {
   deleteByEmail,
   updateNameById,
   updateNameByEmail,
+  updateTenantIdByEmail,
 };
