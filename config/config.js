@@ -2,7 +2,7 @@
 require('dotenv').config();
 
 // Defaults for Firebase configuration if not provided via environment
-process.env.FIREBASE_CREDENTIALS_PATH = process.env.FIREBASE_CREDENTIALS_PATH || './coletoroficial-firebase-adminsdk-fbsvc-3916ca360e.json';
+process.env.FIREBASE_CREDENTIALS_PATH = process.env.FIREBASE_CREDENTIALS_PATH || './coletoroficial-firebase-adminsdk-fbsvc-b4c3260d39.json';
 process.env.FIREBASE_DATABASE_URL = process.env.FIREBASE_DATABASE_URL || 'https://coletoroficial-default-rtdb.firebaseio.com';
 
 module.exports = {
