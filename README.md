@@ -52,25 +52,27 @@ DATABASE_PATH=./data/database.sqlite
 # Removido na migração para SQLite + JWT
 ```
 
-3. Credenciais do Firebase (Admin SDK) via .env
+3. Credenciais do Firebase (Admin SDK)
 
-Para evitar manter a chave no repositório, configure as credenciais via variáveis de ambiente:
+Você deve fornecer credenciais de service account válidas via variáveis de ambiente. Exemplos:
 
 No arquivo `.env` da pasta `api` adicione:
 
 ```
-# Caminho do arquivo de credenciais (service account) OU conteúdo inline
-FIREBASE_CREDENTIALS_PATH=C:\caminho\para\service-account.json
-# ou
-FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account", ...}
+# Caminho do arquivo de credenciais (service account)
+FIREBASE_CREDENTIALS_PATH=api/coletoroficial-firebase-adminsdk-fbsvc-870edd72a3.json
+
+# OU conteúdo inline (garanta que private_key use \n)
+FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account","project_id":"coletoroficial","client_email":"...@coletoroficial.iam.gserviceaccount.com","private_key":"-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"}
 
 # URL do banco de dados (se aplicável)
 FIREBASE_DATABASE_URL=https://coletoroficial-default-rtdb.firebaseio.com
 ```
 
-- O arquivo `api/config/coletoroficial-*.json` não é mais utilizado.
-- As credenciais também funcionam com `GOOGLE_APPLICATION_CREDENTIALS` apontando para o JSON.
-- O `.gitignore` já ignora arquivos de credenciais.
+- Também é possível usar `GOOGLE_APPLICATION_CREDENTIALS` apontando para o JSON.
+- O backend NÃO aplica defaults de credenciais: se não houver `FIREBASE_CREDENTIALS_PATH`/`FIREBASE_SERVICE_ACCOUNT_JSON`, o Firebase Admin tentará `applicationDefault()` e poderá falhar.
+- Há uma varredura automática nos diretórios `api/`, `api/src/` e raiz do projeto para localizar JSONs válidos de service account. Prefira sempre configurar via `.env` para previsibilidade.
+- O `.gitignore` já ignora arquivos de credenciais; evite versionar chaves reais.
 
 ## 🏃‍♂️ Execução
 
@@ -246,4 +248,4 @@ Os testes incluem:
 ## 📞 Suporte
 
 Para suporte ou dúvidas sobre a API, consulte a documentação ou entre em contato com a equipe de desenvolvimento."# API - Coletor de Dados "
-"# api_coletor" 
+"# api_coletor"

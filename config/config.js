@@ -1,9 +1,8 @@
 // api/config/config.js
 require('dotenv').config();
 
-// Defaults for Firebase configuration if not provided via environment
-process.env.FIREBASE_CREDENTIALS_PATH = process.env.FIREBASE_CREDENTIALS_PATH || './coletoroficial-firebase-adminsdk-fbsvc-b4c3260d39.json';
-process.env.FIREBASE_DATABASE_URL = process.env.FIREBASE_DATABASE_URL || 'https://coletoroficial-default-rtdb.firebaseio.com';
+// Firebase configuration must be provided via environment. Do not force defaults
+// to avoid accidentally using incomplete or placeholder credentials.
 
 module.exports = {
   port: process.env.PORT || 3000,
