@@ -45,6 +45,7 @@ src/data/*.sqlite-wal
 # Credenciais do Firebase Admin (service account)
 config/*firebase-adminsdk*.json
 coletoroficial-firebase-adminsdk-fbsvc-870edd72a3.json
+api/coletoroficial-firebase-adminsdk-fbsvc-870edd72a3.json
 
 # Artefatos Expo/Web caso sejam gerados por engano na API
 .expo/
