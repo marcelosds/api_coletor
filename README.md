@@ -249,3 +249,4 @@ Os testes incluem:
 
 Para suporte ou dúvidas sobre a API, consulte a documentação ou entre em contato com a equipe de desenvolvimento."# API - Coletor de Dados "
 "# api_coletor"
+"# api_coletor" 
