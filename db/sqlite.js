@@ -58,6 +58,7 @@ function init() {
 
       CREATE INDEX IF NOT EXISTS idx_inventory_userId ON inventory (userId);
       CREATE INDEX IF NOT EXISTS idx_inventory_updatedAt ON inventory (updatedAt);
+      CREATE INDEX IF NOT EXISTS idx_inventory_nrInventario ON inventory (nrInventario);
       CREATE INDEX IF NOT EXISTS idx_inventory_codigo ON inventory (codigo);
       CREATE INDEX IF NOT EXISTS idx_inventory_placa ON inventory (placa);
     `);
@@ -137,6 +138,7 @@ function init() {
           db.exec(`
             CREATE INDEX IF NOT EXISTS idx_inventory_userId ON inventory (userId);
             CREATE INDEX IF NOT EXISTS idx_inventory_updatedAt ON inventory (updatedAt);
+            CREATE INDEX IF NOT EXISTS idx_inventory_nrInventario ON inventory (nrInventario);
             CREATE INDEX IF NOT EXISTS idx_inventory_codigo ON inventory (codigo);
             CREATE INDEX IF NOT EXISTS idx_inventory_placa ON inventory (placa);
           `);

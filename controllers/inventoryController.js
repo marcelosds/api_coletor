@@ -321,6 +321,7 @@ class InventoryController {
     try {
       const { items } = req.body;
       const userId = req.user?.id || req.user?.uid;
+      const tenantId = req.user?.tenantId || null;
       if (!Array.isArray(items)) {
         return res.status(400).json({
           error: 'Dados inválidos',
@@ -328,7 +329,7 @@ class InventoryController {
         });
       }
       const normalized = items.map(normalizeInput);
-      const results = inventoryRepo.sync(normalized, userId);
+      const results = inventoryRepo.sync(normalized, userId, tenantId);
       res.json({
         success: true,
         message: 'Sincronização realizada com sucesso',

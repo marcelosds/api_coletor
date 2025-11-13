@@ -342,7 +342,7 @@ function distinctEstados(nrInventario, tenantId) {
   return rows.map(r => ({ codigo: r.codigo || null, nome: r.nome }));
 }
 
-function sync(items = [], userId) {
+function sync(items = [], userId, tenantId) {
   const results = [];
   const insert = db.prepare(`
     INSERT INTO inventory (
@@ -362,21 +362,38 @@ function sync(items = [], userId) {
       updatedAt = ?
     WHERE id = ?
   `);
-  const selectById = db.prepare('SELECT * FROM inventory WHERE id = ?');
-  const selectByCodigoWithInv = db.prepare('SELECT * FROM inventory WHERE nrInventario = ? AND codigo = ?');
-  const selectByCodigoGlobal = db.prepare('SELECT * FROM inventory WHERE codigo = ?');
-  const selectByPlacaWithInv = db.prepare('SELECT * FROM inventory WHERE nrInventario = ? AND placa = ?');
-  const selectByPlacaGlobal = db.prepare('SELECT * FROM inventory WHERE placa = ?');
+  // Seleções escopadas por tenantId (CNPJ) para evitar colisões entre clientes
+  const selectByIdTenant = db.prepare('SELECT inventory.* FROM inventory JOIN users u ON u.id = inventory.userId WHERE inventory.id = ? AND u.tenantId = ?');
+  const selectByCodigoWithInvTenant = db.prepare('SELECT inventory.* FROM inventory JOIN users u ON u.id = inventory.userId WHERE inventory.nrInventario = ? AND inventory.codigo = ? AND u.tenantId = ?');
+  const selectByCodigoGlobalTenant = db.prepare('SELECT inventory.* FROM inventory JOIN users u ON u.id = inventory.userId WHERE inventory.codigo = ? AND u.tenantId = ?');
+  const selectByPlacaWithInvTenant = db.prepare('SELECT inventory.* FROM inventory JOIN users u ON u.id = inventory.userId WHERE inventory.nrInventario = ? AND inventory.placa = ? AND u.tenantId = ?');
+  const selectByPlacaGlobalTenant = db.prepare('SELECT inventory.* FROM inventory JOIN users u ON u.id = inventory.userId WHERE inventory.placa = ? AND u.tenantId = ?');
 
   items.forEach(item => {
     const ts = nowISO();
     let existing = null;
-    if (item.id) existing = selectById.get(item.id);
-    if (!existing && item.codigo) {
-      existing = item.nrInventario ? selectByCodigoWithInv.get(item.nrInventario, item.codigo) : selectByCodigoGlobal.get(item.codigo);
-    }
-    if (!existing && item.placa) {
-      existing = item.nrInventario ? selectByPlacaWithInv.get(item.nrInventario, item.placa) : selectByPlacaGlobal.get(item.placa);
+    if (tenantId) {
+      if (item.id) existing = selectByIdTenant.get(item.id, tenantId);
+      if (!existing && item.codigo) {
+        existing = item.nrInventario ? selectByCodigoWithInvTenant.get(item.nrInventario, item.codigo, tenantId) : selectByCodigoGlobalTenant.get(item.codigo, tenantId);
+      }
+      if (!existing && item.placa) {
+        existing = item.nrInventario ? selectByPlacaWithInvTenant.get(item.nrInventario, item.placa, tenantId) : selectByPlacaGlobalTenant.get(item.placa, tenantId);
+      }
+    } else {
+      // Fallback sem tenantId (não recomendado): escopo global
+      const selectById = db.prepare('SELECT * FROM inventory WHERE id = ?');
+      const selectByCodigoWithInv = db.prepare('SELECT * FROM inventory WHERE nrInventario = ? AND codigo = ?');
+      const selectByCodigoGlobal = db.prepare('SELECT * FROM inventory WHERE codigo = ?');
+      const selectByPlacaWithInv = db.prepare('SELECT * FROM inventory WHERE nrInventario = ? AND placa = ?');
+      const selectByPlacaGlobal = db.prepare('SELECT * FROM inventory WHERE placa = ?');
+      if (item.id) existing = selectById.get(item.id);
+      if (!existing && item.codigo) {
+        existing = item.nrInventario ? selectByCodigoWithInv.get(item.nrInventario, item.codigo) : selectByCodigoGlobal.get(item.codigo);
+      }
+      if (!existing && item.placa) {
+        existing = item.nrInventario ? selectByPlacaWithInv.get(item.nrInventario, item.placa) : selectByPlacaGlobal.get(item.placa);
+      }
     }
 
     if (existing) {
