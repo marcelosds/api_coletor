@@ -48,7 +48,7 @@ function list({ nrInventario, page = 1, limit = 50, q, field, since, tenantId })
     params.push(nrInventario);
   }
   if (since) {
-    where += ' AND updatedAt >= ?';
+    where += ' AND inventory.updatedAt >= ?';
     params.push(since);
   }
   // Mapear alias 'local' para 'localizacaoNome' por compatibilidade
@@ -76,7 +76,7 @@ function list({ nrInventario, page = 1, limit = 50, q, field, since, tenantId })
   } else {
     rows = db.prepare(`
       SELECT * FROM inventory WHERE ${where}
-      ORDER BY updatedAt DESC
+      ORDER BY inventory.updatedAt DESC
       LIMIT ? OFFSET ?
     `).all(...params, limit, offset);
     total = db.prepare(`SELECT COUNT(*) as c FROM inventory WHERE ${where}`).get(...params).c;
