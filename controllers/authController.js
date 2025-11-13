@@ -42,7 +42,19 @@ class AuthController {
         });
       }
 
-      const tenantId = user.tenantId || null;
+      let tenantId = user.tenantId || null;
+      // Tentar associar tenantId vindo do header/corpo, se ainda não houver
+      const headerTenantLogin = req.headers['x-tenant-id'] || req.headers['X-Tenant-Id'];
+      const bodyTenantLogin = req.body?.tenantId || req.body?.tenant_id || req.body?.cnpj;
+      const resolvedTenantLogin = tenantId || headerTenantLogin || bodyTenantLogin || null;
+      if (!tenantId && resolvedTenantLogin) {
+        try {
+          Users.updateTenantIdByEmail(user.email, String(resolvedTenantLogin));
+          tenantId = String(resolvedTenantLogin);
+        } catch (e) {
+          console.warn('[AuthController] Falha ao associar tenantId durante login:', e?.message || e);
+        }
+      }
       if (!tenantId) {
         return res.status(400).json({
           error: 'Conta sem CNPJ associado',
