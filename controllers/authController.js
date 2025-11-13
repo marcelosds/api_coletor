@@ -34,7 +34,30 @@ class AuthController {
         });
       }
 
-      const ok = await bcrypt.compare(password, user.password);
+      // Comparação de senha com tratamento para senhas legadas sem hash
+      const stored = user.password || '';
+      const bcryptHashRegex = /^\$2[abxy]\$\d{2}\$[./A-Za-z0-9]{53}$/;
+      let ok = false;
+      try {
+        if (typeof stored === 'string' && bcryptHashRegex.test(stored)) {
+          ok = await bcrypt.compare(password, stored);
+        } else {
+          // Senha possivelmente em texto puro (legado): comparar diretamente e migrar para bcrypt
+          ok = String(stored) === String(password);
+          if (ok) {
+            try {
+              const newHash = await bcrypt.hash(password, 12);
+              Users.updatePasswordByEmail(user.email, newHash);
+              console.log('[AuthController] Senha legacy migrada para bcrypt para', user.email);
+            } catch (migErr) {
+              console.warn('[AuthController] Falha ao migrar senha legacy:', migErr?.message || migErr);
+            }
+          }
+        }
+      } catch (cmpErr) {
+        console.warn('[AuthController] Erro ao comparar senha:', cmpErr?.message || cmpErr);
+        ok = false;
+      }
       if (!ok) {
         return res.status(401).json({
           error: 'Credenciais inválidas',

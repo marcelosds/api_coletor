@@ -95,6 +95,21 @@ function updateTenantIdByEmail(email, tenantId) {
   }
 }
 
+// Atualiza a senha (hash bcrypt) do usuário por email
+function updatePasswordByEmail(email, hashedPassword) {
+  try {
+    const ts = nowISO();
+    const res = db.prepare('UPDATE users SET password = ?, updatedAt = ? WHERE email = ?').run(hashedPassword, ts, email);
+    if (res.changes > 0) {
+      return findByEmail(email);
+    }
+    return null;
+  } catch (error) {
+    console.error('[UserRepo] Erro ao atualizar senha por email:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   createUser,
   findByEmail,
@@ -104,4 +119,5 @@ module.exports = {
   updateNameById,
   updateNameByEmail,
   updateTenantIdByEmail,
+  updatePasswordByEmail,
 };
