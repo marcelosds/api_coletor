@@ -263,6 +263,15 @@ function deleteByInventario(nrInventario, tenantId) {
   return res.changes || 0;
 }
 
+// Exclui todos os itens de inventário pertencentes a um tenant (CNPJ)
+function deleteAllByTenant(tenantId) {
+  if (!tenantId) return 0;
+  const res = db.prepare(
+    'DELETE FROM inventory WHERE EXISTS (SELECT 1 FROM users u WHERE u.id = inventory.userId AND u.tenantId = ?)' 
+  ).run(tenantId);
+  return res.changes || 0;
+}
+
 function deleteByUserId(userId) {
   try {
     const res = db.prepare('DELETE FROM inventory WHERE userId = ?').run(userId);
@@ -472,6 +481,7 @@ module.exports = {
   deleteById,
   deleteByInventario,
   deleteByUserId,
+  deleteAllByTenant,
   distinctLocais,
   distinctSituacoes,
   distinctEstados,

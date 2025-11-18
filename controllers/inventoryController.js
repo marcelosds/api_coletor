@@ -1,5 +1,6 @@
 // api/controllers/inventoryController.js
 const inventoryRepo = require('../repositories/inventoryRepo');
+const { addAuditLog, nowISO } = require('../db/sqlite');
 
 // ----------------------- Helpers de normalização -----------------------
 // Remover chaves com undefined (Firestore não aceita valores undefined)
@@ -312,6 +313,38 @@ class InventoryController {
       res.status(500).json({
         error: 'Erro interno do servidor',
         message: 'Erro ao deletar itens do inventário por nrInventario'
+      });
+    }
+  }
+
+  // Deletar todos os itens pertencentes ao tenant atual (CNPJ)
+  async deleteAllForTenant(req, res) {
+    try {
+      const tenantId = req.user?.tenantId || null;
+      if (!tenantId) {
+        return res.status(400).json({
+          error: 'Tenant ausente',
+          message: 'Token sem tenantId; não é possível excluir por CNPJ'
+        });
+      }
+      const removed = inventoryRepo.deleteAllByTenant(String(tenantId));
+      try {
+        addAuditLog({
+          tenantId: String(tenantId),
+          email: req.user?.email || null,
+          action: 'PURGE_TENANT_DATA',
+          count: Number.isFinite(removed) ? removed : null,
+          origin: 'api',
+          details: { path: req?.originalUrl || '/api/inventory/purgeTenant', ip: req?.ip },
+          createdAt: nowISO(),
+        });
+      } catch {}
+      res.json({ success: true, message: 'Itens do tenant deletados', removed });
+    } catch (error) {
+      console.error('Erro ao deletar por tenant:', error);
+      res.status(500).json({
+        error: 'Erro interno do servidor',
+        message: 'Erro ao deletar itens do inventário por tenant'
       });
     }
   }

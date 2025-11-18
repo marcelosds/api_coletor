@@ -32,6 +32,8 @@ router.post('/sync', inventoryController.sync);
 
 // Exclusão em lote por nrInventario (deve vir ANTES das rotas com :id)
 router.delete('/by-inventario', validateNrInventarioQuery, inventoryController.deleteByInventario);
+// Exclusão de todos os itens do tenant atual (CNPJ)
+router.delete('/tenant', inventoryController.deleteAllForTenant);
 
 // Rotas por ID
 router.get('/:id', validateId, validateNrInventarioQuery, inventoryController.getById);

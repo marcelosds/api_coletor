@@ -61,6 +61,19 @@ function init() {
       CREATE INDEX IF NOT EXISTS idx_inventory_nrInventario ON inventory (nrInventario);
       CREATE INDEX IF NOT EXISTS idx_inventory_codigo ON inventory (codigo);
       CREATE INDEX IF NOT EXISTS idx_inventory_placa ON inventory (placa);
+
+      CREATE TABLE IF NOT EXISTS audit_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tenantId TEXT,
+        email TEXT,
+        action TEXT,
+        count INTEGER,
+        origin TEXT,
+        details TEXT,
+        createdAt TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_audit_tenant ON audit_logs (tenantId);
+      CREATE INDEX IF NOT EXISTS idx_audit_createdAt ON audit_logs (createdAt);
     `);
 
     dbAvailable = true;
@@ -173,4 +186,28 @@ module.exports = {
   db,
   isDbAvailable,
   nowISO,
+  addAuditLog: (payload = {}) => {
+    try {
+      if (!dbAvailable) return false;
+      const stmt = db.prepare(`
+        INSERT INTO audit_logs (tenantId, email, action, count, origin, details, createdAt)
+        VALUES (@tenantId, @email, @action, @count, @origin, @details, @createdAt);
+      `);
+      const createdAt = payload.createdAt || nowISO();
+      const detailsStr = typeof payload.details === 'string' ? payload.details : JSON.stringify(payload.details || {});
+      stmt.run({
+        tenantId: payload.tenantId || null,
+        email: payload.email || null,
+        action: payload.action || null,
+        count: Number.isFinite(payload.count) ? payload.count : null,
+        origin: payload.origin || 'api',
+        details: detailsStr,
+        createdAt,
+      });
+      return true;
+    } catch (e) {
+      console.warn('Falha ao registrar audit log (API):', e?.message || e);
+      return false;
+    }
+  },
 };
