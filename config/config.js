@@ -46,7 +46,7 @@ module.exports = {
   // Database Configuration (for future SQLite integration)
   database: {
     type: 'sqlite',
-    path: process.env.DB_PATH || './data/database.sqlite'
+    path: process.env.DB_PATH || '/data/database.sqlite'
   },
 
   // Firebase Configuration
